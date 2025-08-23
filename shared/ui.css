@@ -1,0 +1,18 @@
+:root{
+  --bg:#f6f7fb;--surface:#ffffff;--muted:#f0f2f8;--text:#0f172a;--text-dim:#475569;--border:#e2e8f0;--accent:#6d28d9;
+}
+:root[data-theme="dark"]{
+  --bg:#0b0d12;--surface:#141a24;--muted:#1b2230;--text:#dbe2ef;--text-dim:#a8b3c7;--border:#243145;--accent:#7c5cff;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+.wrap{padding:1rem;display:grid;gap:1rem}
+.card{background:var(--surface);border:2px solid var(--border);border-radius:14px;padding:1rem}
+.top-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem}
+
+.small{font-size:.86rem;opacity:.85}
+.tag{display:inline-flex;align-items:center;gap:.4rem;border-radius:999px;padding:.18rem .55rem;font-weight:600;border:1px solid transparent}
+.tag.sale{background:#fff7ed;border-color:#fed7aa;color:#9a3412}
+.tag.live{background:#ecfeff;border-color:#a5f3fc;color:#155e75}
+.tag.done{background:#ecfdf5;border-color:#a7f3d0;color:#065f46}
+.tag.fail{background:#fef2f2;border-color:#fecaca;color:#7f1d1d}
