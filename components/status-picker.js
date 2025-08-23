@@ -29,7 +29,10 @@ customElements.define('status-picker', class extends HTMLElement{
       <span class="trigger"></span>
     `;
     this.#paintTrigger();
-    s.querySelector('.trigger').addEventListener('click', ()=> this.#open());
+    const trg=s.querySelector('.trigger');
+    const open=()=> this.#open();
+    trg.addEventListener('click', open);
+    trg.addEventListener('touchstart', (e)=>{ e.preventDefault(); open(); }, {passive:false});
   }
 
   #paintTrigger(){
@@ -50,13 +53,16 @@ customElements.define('status-picker', class extends HTMLElement{
     document.body.appendChild(pop);
     pop.showFor(anchor);
 
+    const pick = (val)=>{
+      this.setAttribute('value', val);
+      this.dispatchEvent(new CustomEvent('select',{detail:{value:val}}));
+      pop.hide(); pop.remove();
+    };
+
     box.querySelectorAll('.item').forEach(it=>{
-      it.addEventListener('click', ()=>{
-        const val=it.dataset.value;
-        this.setAttribute('value', val);
-        this.dispatchEvent(new CustomEvent('select',{detail:{value:val}}));
-        pop.hide(); pop.remove();
-      });
+      const h = ()=> pick(it.dataset.value);
+      it.addEventListener('click', h);
+      it.addEventListener('touchstart', (e)=>{ e.preventDefault(); h(); }, {passive:false});
     });
     pop.addEventListener('close', ()=> pop.remove());
   }
