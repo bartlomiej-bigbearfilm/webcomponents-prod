@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="pl" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <title>Produkcja – OGÓLNE (Web Components)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="./shared/ui.css" />
+    <script type="module">
+      // core
+      import "./shared/utils.js";
+      import "./shared/store.js";
+
+      // UI: modal + popover + reużywalny picker zakresu
+      import "./shared/modal.js";
+      import "./shared/date-range-popup.js";
+
+      // karty
+      import "./components/data-card.js";
+      import "./components/finance-kpi-card.js";
+      import "./components/finance-breakdown-card.js";
+      import "./components/todo-card.js";
+      import "./components/board-card.js";
+      import "./components/calendar-card.js";
+      import "./components/timeline-card.js";
+    </script>
+  </head>
+  <body>
+    <section class="wrap">
+      <div class="top-grid">
+        <data-card class="card"></data-card>
+        <finance-kpi-card class="card"></finance-kpi-card>
+        <finance-breakdown-card class="card"></finance-breakdown-card>
+        <todo-card class="card"></todo-card>
+      </div>
+
+      <board-card class="card"></board-card>
+      <calendar-card></calendar-card>
+      <timeline-card class="card"></timeline-card>
+    </section>
+  </body>
+</html>
