@@ -6,6 +6,7 @@ customElements.define('data-card', class extends HTMLElement{
   constructor(){ super(); this.attachShadow({mode:'open'}); }
   connectedCallback(){ this.render(); }
 
+  // --- helpers ---
   saveField(k,v){
     if(['name','client','description','budget','fee','margin','status'].includes(k)){
       store.setProject({ [k]: v });
@@ -16,10 +17,18 @@ customElements.define('data-card', class extends HTMLElement{
     }
     this.render();
     window.dispatchEvent(new CustomEvent('project-change'));
+    // toast (jeśli masz <ui-toast id="toast">)
+    try{ document.getElementById('toast')?.show('Zapisano zmiany','success'); }catch(e){}
+  }
+
+  // uniwersalny „tap” (click + touch) — iPhone friendly
+  addTap(el, handler){
+    if(!el) return;
+    el.addEventListener('click', (e)=>{ handler(e); });
+    el.addEventListener('touchstart', (e)=>{ e.preventDefault(); handler(e); }, {passive:false});
   }
 
   openRangePicker(anchor, key){
-    // Popover + date-range-popup
     const pop = document.createElement('ui-popover');
     const picker = document.createElement('date-range-popup');
     pop.appendChild(picker);
@@ -30,13 +39,13 @@ customElements.define('data-card', class extends HTMLElement{
     if(str){
       const [s,e]=str.split('–');
       picker.setRange(s, e||s);
-      picker.setMonth(new Date(s));
+      if(s) picker.setMonth(new Date(s));
     }
 
     const onSave = (ev)=>{ const {start,end}=ev.detail; this.saveField(key, `${start}–${end}`); cleanup(); };
     const onCancel = ()=> cleanup();
     const onClose = ()=> cleanup();
-    function cleanup(){ picker.removeEventListener('save', onSave); picker.removeEventListener('cancel', onCancel); pop.removeEventListener('close', onClose); pop.hide(); pop.remove(); }
+    const cleanup=()=>{ picker.removeEventListener('save', onSave); picker.removeEventListener('cancel', onCancel); pop.removeEventListener('close', onClose); pop.hide(); pop.remove(); };
     picker.addEventListener('save', onSave);
     picker.addEventListener('cancel', onCancel);
     pop.addEventListener('close', onClose);
@@ -67,6 +76,7 @@ customElements.define('data-card', class extends HTMLElement{
         .kv{display:grid;grid-template-columns:160px 1fr;gap:.4rem .6rem;align-items:center}
         .label{color:var(--text-dim)}
         .value{cursor:pointer;border-radius:8px;padding:.2rem .3rem;border:1px dashed var(--border);background:var(--surface)}
+        .value.no-cursor{cursor:default}
         .range-inline{display:inline-flex;align-items:center;gap:.35rem;white-space:nowrap}
         .range-inline .box{display:inline-flex;align-items:center;border:1.5px dashed var(--border);border-radius:10px;padding:.2rem .4rem;min-width:92px}
         .range-inline .dash{opacity:.7}
@@ -83,13 +93,11 @@ customElements.define('data-card', class extends HTMLElement{
       if(k==='budget') return fmtCurrency(v);
       if(k==='fee'||k==='margin') return (v||0)+'%';
       if(k==='status'){
-        const map={sale:['W sprzedaży','sale'],live:['Trwające','live'],done:['Zakończone','done'],fail:['Nieudane','fail']};
-        const key = map[v]? v : 'sale';
-        const [txt,cls] = map[key];
-        return `<span class="tag ${cls}">${txt}</span>`;
+        // renderujemy slot — zaraz podmienimy na <status-picker>, a jeśli go nie ma, wyświetlimy tag i fallback na prompt
+        return `<span class="status-slot"></span>`;
       }
       if(['sale','pre','prod','post','fix'].includes(k)){
-        const r = store.parseRange(v||''); if(!r) return '—';
+        const r = store.parseRange ? store.parseRange(v||'') : null; if(!r) return '—';
         return `<span class="range-inline"><span class="box" data-edit="start">${fmtShort(r.s)}</span><span class="dash">–</span><span class="box" data-edit="end">${fmtShort(r.e)}</span></span>`;
       }
       return v||'—';
@@ -103,54 +111,86 @@ customElements.define('data-card', class extends HTMLElement{
       </div>
     `;
 
-    // ——— klient przez <client-picker> ———
+    // --- CLIENT PICKER ---
     {
-      const slot = s.querySelector('.client-slot');
-      if(slot){
+      const host = s.querySelector('.value[data-key="client"]');
+      const slot = host?.querySelector('.client-slot');
+      if(host && slot){
         const cp = document.createElement('client-picker');
         cp.selected = p.client || '';
+        // zatrzymaj bąbelkowanie, żeby .value nie brało klików/touch
+        cp.addEventListener('click', (e)=> e.stopPropagation());
+        cp.addEventListener('touchstart', (e)=>{ e.stopPropagation(); }, {passive:true});
         cp.addEventListener('select', (ev)=> this.saveField('client', ev.detail.value));
         slot.replaceWith(cp);
+        host.classList.add('no-cursor'); // żeby nie „kusiło” że to klikalne pole
       }
     }
 
-    // ——— obsługa klików ———
-    s.querySelectorAll('.value').forEach(v=>{
-      v.addEventListener('click', ()=>{
-        const k = v.dataset.key;
-        const pr = store.project;
-
-        if(k==='client'){ /* client-picker obsłuży */ return; }
-
-        if(k==='status'){
-          const next = prompt('status: sale | live | done | fail', pr.status||'sale');
+    // --- STATUS PICKER (jeśli dostępny), inaczej fallback na prompt ---
+    {
+      const host = s.querySelector('.value[data-key="status"]');
+      const slot = host?.querySelector('.status-slot');
+      const StatusEl = customElements.get('status-picker');
+      if(host && slot && StatusEl){
+        const sp = document.createElement('status-picker');
+        sp.setAttribute('value', p.status || 'sale');
+        sp.addEventListener('click', (e)=> e.stopPropagation());
+        sp.addEventListener('touchstart', (e)=>{ e.stopPropagation(); }, {passive:true});
+        sp.addEventListener('select', (ev)=> this.saveField('status', ev.detail.value));
+        slot.replaceWith(sp);
+        host.classList.add('no-cursor');
+      } else if(host){
+        // fallback – pokaż tag i klik otwiera prompt
+        host.innerHTML = (()=> {
+          const map={sale:['W sprzedaży','sale'],live:['Trwające','live'],done:['Zakończone','done'],fail:['Nieudane','fail']};
+          const key = map[p.status]? p.status : 'sale';
+          const [txt,cls] = map[key];
+          return `<span class="tag ${cls}">${txt}</span>`;
+        })();
+        this.addTap(host, ()=>{
+          const next = prompt('status: sale | live | done | fail', p.status||'sale');
           if(next) this.saveField('status', next);
-          return;
-        }
+        });
+      }
+    }
 
-        if(['sale','pre','prod','post','fix'].includes(k)){
-          this.openRangePicker(v, k);
-          return;
-        }
+    // --- LISTENERY NA POLA (bez client/status, bo mają własne pickery) ---
+    s.querySelectorAll('.value').forEach(v=>{
+      const k = v.dataset.key;
+      if(k==='client' || k==='status') return; // obsłużone wyżej
 
-        if(k==='budget'){
+      if(['sale','pre','prod','post','fix'].includes(k)){
+        this.addTap(v, ()=> this.openRangePicker(v, k));
+        return;
+      }
+
+      if(k==='budget'){
+        this.addTap(v, ()=>{
+          const pr = store.project;
           const nv = parseFloat(prompt('Budżet', pr.budget||0));
           if(!Number.isNaN(nv)) this.saveField('budget', nv);
-          return;
-        }
+        });
+        return;
+      }
 
-        if(k==='fee' || k==='margin'){
+      if(k==='fee' || k==='margin'){
+        this.addTap(v, ()=>{
+          const pr = store.project;
           const nv = parseInt(prompt(k.toUpperCase(), pr[k]||0),10);
           if(!Number.isNaN(nv)) this.saveField(k, nv);
-          return;
-        }
+        });
+        return;
+      }
 
-        if(k==='name' || k==='description'){
+      if(k==='name' || k==='description'){
+        this.addTap(v, ()=>{
+          const pr = store.project;
           const nv = prompt(k==='name'?'Nazwa projektu':'Opis', pr[k]||'');
           if(nv!=null) this.saveField(k, nv);
-          return;
-        }
-      });
+        });
+        return;
+      }
     });
   }
 });
