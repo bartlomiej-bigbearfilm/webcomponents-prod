@@ -7,6 +7,8 @@ customElements.define('data-card', class extends HTMLElement{
   connectedCallback(){ this.render(); }
 
   // --- helpers ---
+  isTouch(){ return matchMedia('(pointer: coarse)').matches || ('ontouchstart' in window); }
+
   saveField(k,v){
     if(['name','client','description','budget','fee','margin','status'].includes(k)){
       store.setProject({ [k]: v });
@@ -17,18 +19,26 @@ customElements.define('data-card', class extends HTMLElement{
     }
     this.render();
     window.dispatchEvent(new CustomEvent('project-change'));
-    // toast (jeśli masz <ui-toast id="toast">)
     try{ document.getElementById('toast')?.show('Zapisano zmiany','success'); }catch(e){}
   }
 
-  // uniwersalny „tap” (click + touch) — iPhone friendly
   addTap(el, handler){
     if(!el) return;
-    el.addEventListener('click', (e)=>{ handler(e); });
-    el.addEventListener('touchstart', (e)=>{ e.preventDefault(); handler(e); }, {passive:false});
+    const h = (e)=>{ handler(e); };
+    el.addEventListener('click', h);
+    el.addEventListener('pointerdown', (e)=>{ if(e.pointerType==='touch') { e.preventDefault(); h(e);} }, {passive:false});
+    el.addEventListener('touchstart', (e)=>{ e.preventDefault(); h(e); }, {passive:false});
   }
 
   openRangePicker(anchor, key){
+    // jeśli dotyk – daj prosty prompt jako awaryjny tryb
+    if(this.isTouch()){
+      const cur = (store.project.periods||{})[key] || '';
+      const nv = prompt('Zakres (RRRR-MM-DD–RRRR-MM-DD)', cur || new Date().toISOString().slice(0,10)+'–'+new Date().toISOString().slice(0,10));
+      if(nv) this.saveField(key, nv);
+      return;
+    }
+    // normalnie: popover + mini-kalendarz
     const pop = document.createElement('ui-popover');
     const picker = document.createElement('date-range-popup');
     pop.appendChild(picker);
@@ -92,10 +102,7 @@ customElements.define('data-card', class extends HTMLElement{
       if(k==='client'){ return `<span class="client-slot"></span>`; }
       if(k==='budget') return fmtCurrency(v);
       if(k==='fee'||k==='margin') return (v||0)+'%';
-      if(k==='status'){
-        // renderujemy slot — zaraz podmienimy na <status-picker>, a jeśli go nie ma, wyświetlimy tag i fallback na prompt
-        return `<span class="status-slot"></span>`;
-      }
+      if(k==='status'){ return `<span class="status-slot"></span>`; }
       if(['sale','pre','prod','post','fix'].includes(k)){
         const r = store.parseRange ? store.parseRange(v||'') : null; if(!r) return '—';
         return `<span class="range-inline"><span class="box" data-edit="start">${fmtShort(r.s)}</span><span class="dash">–</span><span class="box" data-edit="end">${fmtShort(r.e)}</span></span>`;
@@ -111,28 +118,40 @@ customElements.define('data-card', class extends HTMLElement{
       </div>
     `;
 
-    // --- CLIENT PICKER ---
+    // --- CLIENT ---
     {
       const host = s.querySelector('.value[data-key="client"]');
       const slot = host?.querySelector('.client-slot');
-      if(host && slot){
+      const ClientEl = customElements.get('client-picker');
+      if(host && slot && ClientEl && !this.isTouch()){
         const cp = document.createElement('client-picker');
         cp.selected = p.client || '';
-        // zatrzymaj bąbelkowanie, żeby .value nie brało klików/touch
         cp.addEventListener('click', (e)=> e.stopPropagation());
         cp.addEventListener('touchstart', (e)=>{ e.stopPropagation(); }, {passive:true});
         cp.addEventListener('select', (ev)=> this.saveField('client', ev.detail.value));
         slot.replaceWith(cp);
-        host.classList.add('no-cursor'); // żeby nie „kusiło” że to klikalne pole
+        host.classList.add('no-cursor');
+      } else if(host){
+        // fallback mobilny / brak komponentu → prompt
+        host.innerHTML = `<span>${p.client || 'Wybierz klienta…'}</span>`;
+        this.addTap(host, ()=>{
+          const list = (store.getClients?.() || []);
+          const numbered = list.map((c,i)=>`${i+1}. ${c}`).join('\n');
+          const input = prompt(`Wpisz nazwę klienta\nalbo numer z listy:\n${numbered}`, p.client||'');
+          if(input==null) return;
+          const num = parseInt(input,10);
+          const val = (!Number.isNaN(num) && list[num-1]) ? list[num-1] : input.trim();
+          if(val) this.saveField('client', val);
+        });
       }
     }
 
-    // --- STATUS PICKER (jeśli dostępny), inaczej fallback na prompt ---
+    // --- STATUS ---
     {
       const host = s.querySelector('.value[data-key="status"]');
       const slot = host?.querySelector('.status-slot');
       const StatusEl = customElements.get('status-picker');
-      if(host && slot && StatusEl){
+      if(host && slot && StatusEl && !this.isTouch()){
         const sp = document.createElement('status-picker');
         sp.setAttribute('value', p.status || 'sale');
         sp.addEventListener('click', (e)=> e.stopPropagation());
@@ -141,13 +160,10 @@ customElements.define('data-card', class extends HTMLElement{
         slot.replaceWith(sp);
         host.classList.add('no-cursor');
       } else if(host){
-        // fallback – pokaż tag i klik otwiera prompt
-        host.innerHTML = (()=> {
-          const map={sale:['W sprzedaży','sale'],live:['Trwające','live'],done:['Zakończone','done'],fail:['Nieudane','fail']};
-          const key = map[p.status]? p.status : 'sale';
-          const [txt,cls] = map[key];
-          return `<span class="tag ${cls}">${txt}</span>`;
-        })();
+        const map={sale:['W sprzedaży','sale'],live:['Trwające','live'],done:['Zakończone','done'],fail:['Nieudane','fail']};
+        const key = map[p.status]? p.status : 'sale';
+        const [txt,cls] = map[key];
+        host.innerHTML = `<span class="tag ${cls}">${txt}</span>`;
         this.addTap(host, ()=>{
           const next = prompt('status: sale | live | done | fail', p.status||'sale');
           if(next) this.saveField('status', next);
@@ -155,16 +171,15 @@ customElements.define('data-card', class extends HTMLElement{
       }
     }
 
-    // --- LISTENERY NA POLA (bez client/status, bo mają własne pickery) ---
+    // --- POZOSTAŁE POLA ---
     s.querySelectorAll('.value').forEach(v=>{
       const k = v.dataset.key;
-      if(k==='client' || k==='status') return; // obsłużone wyżej
+      if(k==='client' || k==='status') return;
 
       if(['sale','pre','prod','post','fix'].includes(k)){
         this.addTap(v, ()=> this.openRangePicker(v, k));
         return;
       }
-
       if(k==='budget'){
         this.addTap(v, ()=>{
           const pr = store.project;
@@ -173,7 +188,6 @@ customElements.define('data-card', class extends HTMLElement{
         });
         return;
       }
-
       if(k==='fee' || k==='margin'){
         this.addTap(v, ()=>{
           const pr = store.project;
@@ -182,7 +196,6 @@ customElements.define('data-card', class extends HTMLElement{
         });
         return;
       }
-
       if(k==='name' || k==='description'){
         this.addTap(v, ()=>{
           const pr = store.project;
