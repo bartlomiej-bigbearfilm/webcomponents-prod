@@ -17,7 +17,10 @@ customElements.define('client-picker', class extends HTMLElement{
       <span class="trigger">—</span>
     `;
     this.paintTrigger();
-    s.querySelector('.trigger').addEventListener('click', ()=> this.open());
+    const trg=s.querySelector('.trigger');
+    const open=()=> this.open();
+    trg.addEventListener('click', open);
+    trg.addEventListener('touchstart', (e)=>{ e.preventDefault(); open(); }, {passive:false});
   }
 
   paintTrigger(){
@@ -27,7 +30,7 @@ customElements.define('client-picker', class extends HTMLElement{
 
   open(anchor=this.shadowRoot.querySelector('.trigger')){
     const pop=document.createElement('ui-popover');
-    // panel: lista + przycisk „dodaj”
+
     const menu=document.createElement('ui-menu');
     const addBtn=document.createElement('button');
     addBtn.textContent='➕ Dodaj nowego…';
@@ -35,28 +38,35 @@ customElements.define('client-picker', class extends HTMLElement{
     addBtn.style.cssText='margin-top:.4rem;width:100%';
 
     const wrap=document.createElement('div');
-    wrap.innerHTML=`<div style="min-width:260px"></div>`;
-    wrap.firstChild.append(menu, addBtn);
+    const inner=document.createElement('div');
+    inner.style.minWidth='260px';
+    inner.append(menu, addBtn);
+    wrap.appendChild(inner);
     pop.appendChild(wrap);
 
     document.body.appendChild(pop);
+
     const clients=store.getClients().map(c=>({label:c,value:c}));
     menu.data = clients;
     pop.showFor(anchor);
 
-    menu.addEventListener('select', (e)=>{
-      this.value = e.detail.value;
+    const finish = (val, created=false)=>{
+      this.value = val;
       this.paintTrigger();
-      this.dispatchEvent(new CustomEvent('select', {detail:{value:this.value}}));
+      this.dispatchEvent(new CustomEvent('select', {detail:{value:this.value, created}}));
       pop.hide(); pop.remove();
-    });
-    addBtn.addEventListener('click', ()=>{
+    };
+
+    menu.addEventListener('select', (e)=> finish(e.detail.value, false));
+
+    const onAdd = ()=>{
       const name=prompt('Nazwa klienta'); if(!name) return;
       const list=store.getClients(); if(!list.includes(name)) store.setClients([...list,name]);
-      this.value=name; this.paintTrigger();
-      this.dispatchEvent(new CustomEvent('select', {detail:{value:this.value, created:true}}));
-      pop.hide(); pop.remove();
-    });
+      finish(name, true);
+    };
+    addBtn.addEventListener('click', onAdd);
+    addBtn.addEventListener('touchstart', (e)=>{ e.preventDefault(); onAdd(); }, {passive:false});
+
     pop.addEventListener('close', ()=> pop.remove());
   }
 });
