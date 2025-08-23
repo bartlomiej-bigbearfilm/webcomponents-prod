@@ -36,11 +36,13 @@ customElements.define('ui-menu', class extends HTMLElement{
       ? arr.map(x=>`<div class="item" data-value="${String(x.value)}">${x.label??x.value}</div>`).join('')
       : `<div class="item muted">Brak wyników</div>`;
     list.querySelectorAll('.item').forEach(el=>{
-      el.addEventListener('click', ()=>{
+      const pick = ()=>{
         if(!el.dataset.value) return;
         const value = this.items.find(x=>String(x.value)===el.dataset.value);
         this.dispatchEvent(new CustomEvent('select', {detail: value||{value:el.dataset.value}}));
-      });
+      };
+      el.addEventListener('click', pick);
+      el.addEventListener('touchstart', (e)=>{ e.preventDefault(); pick(); }, {passive:false});
     });
   }
 });
