@@ -6,24 +6,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="./shared/ui.css" />
     <script type="module">
-      // core
-      import "./shared/utils.js";
-      import "./shared/store.js";
-      import "./shared/menu.js";
-
-      // UI: modal + popover + reużywalny picker zakresu
-      import "./shared/modal.js";
-      import "./shared/date-range-popup.js";
-
-      // karty
-      import "./components/data-card.js";
-      import "./components/finance-kpi-card.js";
-      import "./components/finance-breakdown-card.js";
-      import "./components/todo-card.js";
-      import "./components/board-card.js";
-      import "./components/calendar-card.js";
-      import "./components/timeline-card.js";
-    </script>
+  import "./shared/utils.js";
+  import "./shared/store.js";
+  import "./shared/modal.js";
+  import "./shared/menu.js";
+  import "./shared/date-range-popup.js";
+  import "./shared/toast.js";             <!-- NOWE -->
+  import "./components/status-picker.js"; <!-- NOWE -->
+  import "./components/client-picker.js";
+  import "./components/data-card.js";
+  import "./components/finance-kpi-card.js";
+  import "./components/finance-breakdown-card.js";
+  import "./components/todo-card.js";
+  import "./components/board-card.js";
+  import "./components/calendar-card.js";
+  import "./components/timeline-card.js";
+</script>
   </head>
   <body>
     <section class="wrap">
@@ -38,5 +36,6 @@
       <calendar-card></calendar-card>
       <timeline-card class="card"></timeline-card>
     </section>
+    <ui-toast id="toast"></ui-toast>
   </body>
 </html>
