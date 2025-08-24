@@ -12,15 +12,15 @@ customElements.define('client-picker', class extends HTMLElement{
     s.innerHTML = `
       <style>
         :host{display:inline-block}
+        /* W „Dane” ma wyglądać jak zwykły tekst (bez podkreślenia/strzałki/ramki) */
         .trigger{
           cursor:pointer; display:inline-flex; align-items:center; gap:.45rem;
           padding:0; background:transparent; border:0; color:inherit; font:inherit;
         }
-        .chev{opacity:.6}
-        .trigger:hover .label{ text-decoration:underline; }
+        .trigger:hover{ text-decoration:none; }
       </style>
       <button class="trigger" type="button">
-        <span class="label">—</span><span class="chev">▾</span>
+        <span class="label">—</span>
       </button>
     `;
     this.paintTrigger();
@@ -38,27 +38,52 @@ customElements.define('client-picker', class extends HTMLElement{
   open(anchor=this.shadowRoot.querySelector('.trigger')){
     const pop=document.createElement('ui-popover');
 
-    const menu=document.createElement('ui-menu');
+    const menu=document.createElement('ui-menu');           // lista istniejących klientów
     const box=document.createElement('div');
-    box.style.minWidth='300px';
+    box.style.minWidth='320px';
     box.style.display='grid';
-    box.style.gap='.5rem';
+    box.style.gap='.6rem';
 
-    const addRow=document.createElement('div');
-    addRow.innerHTML = `
+    // Sekcja „Nowy klient”: najpierw duży przycisk; po kliknięciu pokazuje się input + Dodaj
+    const newWrap=document.createElement('div');
+    newWrap.innerHTML = `
       <style>
-        .row{display:flex;gap:.4rem}
-        .row input{flex:1;border:1px solid var(--border);border-radius:10px;padding:.45rem .6rem;background:var(--surface);color:var(--text)}
+        .row{display:flex;gap:.5rem}
+        .row input{flex:1;border:1px solid var(--border);border-radius:10px;padding:.5rem .7rem;background:var(--surface);color:var(--text)}
+        .hidden{display:none}
       </style>
-      <div class="row">
-        <input placeholder="Dodaj nowego klienta…" />
-        <button class="btn primary" type="button">Dodaj</button>
+      <button class="btn primary full" type="button">➕ Nowy klient</button>
+      <div class="row hidden">
+        <input placeholder="Nazwa nowego klienta…" />
+        <button class="btn" type="button">Dodaj</button>
       </div>
     `;
-    box.append(menu, addRow);
+    const newBtn = newWrap.querySelector('button.btn.primary');
+    const row    = newWrap.querySelector('.row');
+    const input  = newWrap.querySelector('input');
+    const addBtn = newWrap.querySelector('.row .btn');
+
+    newBtn.addEventListener('click', ()=>{
+      newBtn.classList.add('hidden');
+      row.classList.remove('hidden');
+      setTimeout(()=> input?.focus(), 30);
+    });
+
+    const create = ()=>{
+      const name=(input.value||'').trim(); if(!name) return;
+      const list=store.getClients(); if(!list.includes(name)) store.setClients([...list,name]);
+      finish(name, true);
+    };
+    addBtn.addEventListener('click', create);
+    addBtn.addEventListener('touchstart', (e)=>{ e.preventDefault(); create(); }, {passive:false});
+    input.addEventListener('keydown', (e)=>{ if(e.key==='Enter') create(); });
+
+    // Złożenie popovera
+    box.append(newWrap, menu);
     pop.appendChild(box);
     document.body.appendChild(pop);
 
+    // Załaduj listę
     const clients=store.getClients().map(c=>({label:c,value:c}));
     menu.data = clients;
     pop.showFor(anchor);
@@ -71,21 +96,6 @@ customElements.define('client-picker', class extends HTMLElement{
     };
 
     menu.addEventListener('select', (e)=> finish(e.detail.value, false));
-
-    const input = addRow.querySelector('input');
-    const btn   = addRow.querySelector('button');
-
-    const create = ()=>{
-      const name=(input.value||'').trim(); if(!name) return;
-      const list=store.getClients(); if(!list.includes(name)) store.setClients([...list,name]);
-      finish(name, true);
-    };
-    btn.addEventListener('click', create);
-    btn.addEventListener('touchstart', (e)=>{ e.preventDefault(); create(); }, {passive:false});
-    input.addEventListener('keydown', (e)=>{ if(e.key==='Enter') create(); });
-
     pop.addEventListener('close', ()=> pop.remove());
-    // autofocus
-    setTimeout(()=> input?.focus(), 50);
   }
 });
