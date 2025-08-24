@@ -39,6 +39,7 @@ customElements.define('data-card', class extends HTMLElement{
     const onSave = (ev)=>{ const {start,end}=ev.detail; this._save(key, `${start}–${end}`); cleanup(); };
     const cleanup=()=>{ picker.removeEventListener('save', onSave); pop.removeEventListener('close', cleanup); pop.hide(); pop.remove(); };
     picker.addEventListener('save', onSave);
+    picker.addEventListener('cancel', cleanup);
     pop.addEventListener('close', cleanup);
   }
 
