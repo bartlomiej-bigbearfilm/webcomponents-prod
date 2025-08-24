@@ -8,7 +8,7 @@ class DateRangePopup extends HTMLElement{
     this.view=new Date();
     this.start=null;
     this.end=null;
-    this._hover=null;     // <- NOWE: aktualny dzień pod kursorem do podglądu
+    this._hover=null; // <- podgląd zakresu po pierwszym kliknięciu
   }
   connectedCallback(){ this.render(); }
   setRange(s,e){ this.start=s?new Date(s):null; this.end=e?new Date(e):null; this._hover=null; this.renderGrid(); }
@@ -25,8 +25,8 @@ class DateRangePopup extends HTMLElement{
         .cell{padding:.35rem .3rem;text-align:center;border-radius:8px;cursor:pointer;border:1px solid transparent}
         .cell:hover{background:var(--muted,#f0f2f8)}
         .dim{opacity:.45}
-        .in{background:#ddd6fe}           /* finalny wybrany zakres (Twój kolor) */
-        .preview{background:#eee8ff}      /* NOWE: podgląd podczas ruszania myszką (delikatniej) */
+        .in{background:#ddd6fe}       /* finalny wybrany zakres */
+        .preview{background:#eee8ff}  /* podgląd zakresu podczas ruchu myszką */
         .sel{background:#a78bfa;color:white}
         .tags{display:flex;gap:.35rem;flex-wrap:wrap;margin-top:.5rem}
         .btn{border:1px solid var(--border);background:var(--surface);border-radius:10px;padding:.25rem .6rem;cursor:pointer}
@@ -52,18 +52,27 @@ class DateRangePopup extends HTMLElement{
         </div>
       </div>
     `;
-    s.querySelector('.grid.head').innerHTML = ['Pn','Wt','Śr','Cz','Pt','So','Nd']
+    s.querySelector('.grid.head').innerHTML =
+      ['Pn','Wt','Śr','Cz','Pt','So','Nd']
       .map(x=>`<div class="cell" style="font-weight:700;cursor:default">${x}</div>`).join('');
 
     s.querySelector('.prev').onclick = ()=>{ this.setMonth(new Date(this.view.getFullYear(),this.view.getMonth()-1,1)); };
     s.querySelector('.next').onclick = ()=>{ this.setMonth(new Date(this.view.getFullYear(),this.view.getMonth()+1,1)); };
-    s.querySelector('.cancel').onclick = ()=> this.dispatchEvent(new CustomEvent('cancel'));
+
+    // ✅ Anuluj: emituj 'cancel' (popover nasłuchuje i zamknie)
+    s.querySelector('.cancel').onclick = ()=> {
+      this.dispatchEvent(new CustomEvent('cancel'));
+    };
+
+    // „Zapisz” – jak wcześniej
     s.querySelector('.save').onclick = ()=>{
       if(!this.start) return;
       const sISO=toISODate(this.start);
       const eISO=toISODate(this.end||this.start);
       this.dispatchEvent(new CustomEvent('save',{detail:{start:sISO,end:eISO}}));
     };
+
+    // Presety jak wcześniej
     s.querySelectorAll('.preset').forEach(b=>b.addEventListener('click', ()=>{
       const now=new Date(); const dow=(now.getDay()+6)%7;
       if(b.dataset.p==='today'){ this.start=now; this.end=now; }
@@ -73,21 +82,20 @@ class DateRangePopup extends HTMLElement{
       this._hover=null;
       this.renderGrid();
     }));
+
     this.renderGrid();
   }
 
   renderGrid(){
     const s=this.shadowRoot;
     s.querySelector('.title').textContent = this.view.toLocaleString('pl-PL',{month:'long',year:'numeric'});
+
     const firstIdx = ((new Date(this.view.getFullYear(),this.view.getMonth(),1)).getDay()+6)%7;
     const y=this.view.getFullYear(), m=this.view.getMonth();
     const start=new Date(y,m,1-firstIdx);
 
     const isoStart = this.start ? toISODate(this.start) : null;
-    const isoEnd   = this.end   ? toISODate(this.end)   : null;
-    const isoHover = this._hover? toISODate(this._hover): null;
 
-    // pomocnicze: czy d leży między a i b (a<=d<=b) niezależnie od kolejności
     const between = (d,a,b)=>{
       const dd = new Date(toISODate(d));
       const aa = new Date(toISODate(a));
@@ -101,38 +109,41 @@ class DateRangePopup extends HTMLElement{
       const d=new Date(start.getFullYear(),start.getMonth(),start.getDate()+i);
       const inMonth=d.getMonth()===m;
       const dim = inMonth? '' : 'dim';
-
       const isSel = isoStart && toISODate(d)===isoStart;
       const inSel = (this.start && this.end) ? between(d, this.start, this.end) : false;
-      const inPreview = (this.start && !this.end && this._hover) ? between(d, this.start, this._hover) : false; // <- NOWE
+      const inPreview = (this.start && !this.end && this._hover) ? between(d, this.start, this._hover) : false;
 
       days.push(`<div class="cell ${dim} ${inSel?'in':''} ${inPreview?'preview':''} ${isSel?'sel':''}" data-date="${d.toISOString()}">${d.getDate()}</div>`);
     }
     s.querySelector('.grid.days').innerHTML = days.join('');
 
-    // Interakcje
     s.querySelectorAll('.grid.days .cell').forEach(c=>{
-      const onEnter = ()=>{
+      // podgląd zakresu tylko w trybie „po pierwszym kliknięciu”
+      c.addEventListener('mouseenter', ()=>{
         if(this.start && !this.end){
           this._hover = new Date(c.dataset.date);
           this.renderGrid();
         }
-      };
-      const onClick = ()=>{
+      });
+
+      c.addEventListener('click', ()=>{
         const d=new Date(c.dataset.date);
+
         if(!this.start || (this.start && this.end)){
-          // zaczynamy nowy zakres
+          // 1. klik – zaczynamy nowy zakres
           this.start=d; this.end=null; this._hover=d;
-        }else{
-          // domykamy zakres
+          this.renderGrid();
+        } else {
+          // 2. klik – domykamy zakres i OD RAZU AKCEPTUJEMY (save)
           if(d < this.start){ this.end=this.start; this.start=d; }
           else this.end=d;
+          const sISO=toISODate(this.start);
+          const eISO=toISODate(this.end);
           this._hover=null;
+          this.renderGrid(); // tylko żeby na moment pokazać finalny stan
+          this.dispatchEvent(new CustomEvent('save',{detail:{start:sISO,end:eISO}}));
         }
-        this.renderGrid();
-      };
-      c.addEventListener('mouseenter', onEnter);
-      c.addEventListener('click', onClick);
+      });
     });
   }
 }
