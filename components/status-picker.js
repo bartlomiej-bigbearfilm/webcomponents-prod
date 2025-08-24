@@ -18,15 +18,19 @@ customElements.define('status-picker', class extends HTMLElement{
       <style>
         :host{display:inline-block;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
         .trigger{display:inline-flex;align-items:center;gap:.4rem;cursor:pointer}
-        /* lokalne style tagu – pobierają kolory z :root jeśli są, inaczej fallback */
+        /* tag wewnątrz pickera (shadow) — niezależny od styli rodzica */
         .tag{display:inline-flex;align-items:center;gap:.4rem;border-radius:10px;padding:.18rem .5rem;font-weight:600;border:1px solid transparent}
         .sale{ background:var(--st-sale-bg, rgba(249,115,22,.12)); border-color:var(--st-sale-bd,#fdba74); color:var(--st-sale-tx,#9a3412); }
         .live{ background:var(--st-live-bg, rgba(8,145,178,.12)); border-color:var(--st-live-bd,#67e8f9); color:var(--st-live-tx,#155e75); }
         .done{ background:var(--st-done-bg, rgba(5,150,105,.12)); border-color:var(--st-done-bd,#86efac); color:var(--st-done-tx,#065f46); }
         .fail{ background:var(--st-fail-bg, rgba(220,38,38,.12)); border-color:var(--st-fail-bd,#fca5a5); color:var(--st-fail-tx,#7f1d1d); }
-        /* menu */
-        .menu{min-width:260px;display:flex;flex-direction:column;gap:.6rem;padding:.2rem}
-        .item{display:flex;justify-content:center;align-items:center;padding:.35rem .5rem;border-radius:10px;cursor:pointer;transition:background-color .12s ease}
+
+        /* menu: większe odstępy + szary pasek w tle na hover */
+        .menu{min-width:260px;display:flex;flex-direction:column;gap:.9rem;padding:.2rem}
+        .item{
+          display:flex;justify-content:center;align-items:center;
+          padding:.45rem .6rem;border-radius:10px;cursor:pointer;transition:background-color .12s ease
+        }
         .item:hover{ background:var(--muted, #f0f2f8); }
       </style>
       <span class="trigger"></span>
