@@ -6,7 +6,6 @@ customElements.define('data-card', class extends HTMLElement{
   constructor(){ super(); this.attachShadow({mode:'open'}); }
   connectedCallback(){ this.render(); }
 
-  // ---------------- helpers ----------------
   _save(k,v){
     if(['name','client','description','budget','fee','margin','status'].includes(k)){
       store.setProject({ [k]: v });
@@ -43,7 +42,6 @@ customElements.define('data-card', class extends HTMLElement{
     pop.addEventListener('close', cleanup);
   }
 
-  // --------------- render ------------------
   render(){
     const s=this.shadowRoot, p=store.project;
 
@@ -65,29 +63,29 @@ customElements.define('data-card', class extends HTMLElement{
     s.innerHTML = `
       <style>
         :host{display:block}
-        .kv{display:grid;grid-template-columns:160px 1fr;gap:.5rem .75rem;align-items:center}
-        .label{color:var(--text-dim)}
+        .kv{display:grid;grid-template-columns:160px 1fr;gap:.35rem .6rem;align-items:center}
+        .label{color:var(--text-dim);font-size:.92rem}
         .value{
-          cursor:pointer;border-radius:10px;padding:.35rem .45rem;
-          border:1.5px dashed var(--border);background:var(--surface);
+          cursor:pointer;border-radius:10px;padding:.22rem .35rem;
+          border:1.25px dashed var(--border);background:var(--surface);
           transition: background-color .12s ease, border-color .12s ease, box-shadow .12s ease;
-          min-height:34px; display:flex; align-items:center; gap:.5rem;
+          min-height:28px; display:flex; align-items:center; gap:.5rem; line-height:1.2;
         }
-        .value:hover{ background:var(--muted); border-color:var(--border); box-shadow:0 2px 10px rgba(0,0,0,.04) }
+        .value:hover{ background:var(--muted); border-color:var(--border); box-shadow:0 1px 6px rgba(0,0,0,.04) }
         .value.editing{ background:rgba(109,40,217,.06); outline:2px solid rgba(109,40,217,.3); border-color:transparent; }
-        .value :is(input,textarea){ width:100%; border:1px solid var(--border); border-radius:10px; padding:.5rem .6rem; font:inherit; background:var(--surface); }
+        .value :is(input,textarea){ width:100%; border:1px solid var(--border); border-radius:10px; padding:.4rem .5rem; font:inherit; background:var(--surface); }
 
-        .range-inline{display:inline-flex;align-items:center;gap:.45rem;white-space:nowrap}
+        .range-inline{display:inline-flex;align-items:center;gap:.35rem;white-space:nowrap}
         .range-inline .box{
-          display:inline-flex;align-items:center;border:1.5px dashed var(--border);
-          border-radius:10px;padding:.25rem .5rem;min-width:92px;background:var(--surface);
+          display:inline-flex;align-items:center;border:1.25px dashed var(--border);
+          border-radius:10px;padding:.18rem .42rem;min-width:88px;background:var(--surface);
           transition: box-shadow .12s ease, border-color .12s ease;
         }
         .range-inline .box:hover{ box-shadow:0 0 0 3px rgba(109,40,217,.14); border-color:var(--accent,#6d28d9) }
-        .range-inline .dash{opacity:.65}
+        .range-inline .dash{opacity:.6}
 
-        /* Tagi statusów (jak w całym systemie) */
-        .tag{display:inline-flex;align-items:center;gap:.4rem;border-radius:10px;padding:.22rem .55rem;font-weight:600;border:1px solid transparent}
+        /* Tagi statusów (spójne z resztą) */
+        .tag{display:inline-flex;align-items:center;gap:.4rem;border-radius:10px;padding:.18rem .5rem;font-weight:600;border:1px solid transparent}
         .tag.sale{background:var(--st-sale-bg);border-color:var(--st-sale-bd);color:var(--st-sale-tx);}
         .tag.live{background:var(--st-live-bg);border-color:var(--st-live-bd);color:var(--st-live-tx);}
         .tag.done{background:var(--st-done-bg);border-color:var(--st-done-bd);color:var(--st-done-tx);}
@@ -103,22 +101,22 @@ customElements.define('data-card', class extends HTMLElement{
       </div>
     `;
 
-    // ---- klient: picker w środku pola (ramka zostaje) ----
+    // ---- klient: picker w środku pola (działa normalnie) ----
     {
       const host = s.querySelector('.value[data-key="client"]');
       const slot = host?.querySelector('.client-slot');
       if(host && slot){
         const cp = document.createElement('client-picker');
-        slot.replaceWith(cp);                         // wpinamy
-        queueMicrotask(()=> { try{ cp.selected = p.client || ''; }catch(_){} }); // ustaw wartość po wpięciu
-        // klik obsługuje sam picker; nic nie bąbelkujemy
-        cp.addEventListener('click', (e)=> e.stopPropagation());
-        cp.addEventListener('touchstart', (e)=> e.stopPropagation(), {passive:true});
+        slot.replaceWith(cp);
+        // ustaw po wpięciu
+        queueMicrotask(()=> { try{ cp.selected = p.client || ''; }catch(_){} });
+        // NIE zatrzymujemy propagacji — host nie ma obsługi klików dla client, więc nie koliduje
+        cp.style.pointerEvents='auto';
         cp.addEventListener('select', (ev)=> this._save('client', ev.detail.value));
       }
     }
 
-    // ---- status: tag + picker w środku pola ----
+    // ---- status: tag (wewnątrz pickera) ----
     {
       const host = s.querySelector('.value[data-key="status"]');
       const slot = host?.querySelector('.status-slot');
@@ -126,8 +124,7 @@ customElements.define('data-card', class extends HTMLElement{
         const sp = document.createElement('status-picker');
         slot.replaceWith(sp);
         queueMicrotask(()=> { try{ sp.setAttribute('value', (typeof p.status==='string'? p.status : (p.status?.key || 'sale'))); }catch(_){} });
-        sp.addEventListener('click', (e)=> e.stopPropagation());
-        sp.addEventListener('touchstart', (e)=> e.stopPropagation(), {passive:true});
+        sp.style.pointerEvents='auto';
         sp.addEventListener('select', (ev)=> this._save('status', ev.detail.value));
       }
     }
@@ -138,7 +135,6 @@ customElements.define('data-card', class extends HTMLElement{
       if(k==='client' || k==='status') return;
 
       if(['sale','pre','prod','post','fix'].includes(k)){
-        // klik w całe pole, ale pozycjonujemy po pierwszym boxie
         const anchor = val.querySelector('.box') || val;
         this._tap(val, ()=> this._openRangePicker(anchor, k));
         return;
