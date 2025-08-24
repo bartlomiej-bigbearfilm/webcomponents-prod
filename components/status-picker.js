@@ -18,9 +18,14 @@ customElements.define('status-picker', class extends HTMLElement{
       <style>
         :host{display:inline-block;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
         .trigger{display:inline-flex;align-items:center;gap:.4rem;cursor:pointer}
-        .menu{min-width:240px;display:grid;gap:.35rem}
-        .item{padding:.2rem;border-radius:8px;cursor:pointer}
-        .item:hover{background:var(--muted)}
+        /* Popover menu */
+        .menu{min-width:260px;display:flex;flex-direction:column;gap:.6rem;padding:.2rem}
+        .item{
+          display:flex;justify-content:center;align-items:center;
+          padding:.35rem .5rem;border-radius:10px; cursor:pointer;
+          transition:background-color .12s ease;
+        }
+        .item:hover{ background:var(--muted); }
       </style>
       <span class="trigger"></span>
     `;
@@ -35,17 +40,21 @@ customElements.define('status-picker', class extends HTMLElement{
     const cur = STATUS[this.value] || STATUS.sale;
     const trg = this.shadowRoot.querySelector('.trigger');
     if(!trg) return;
+    // Wyświetl w „Dane” dokładnie ten sam tag, co w menu
     trg.innerHTML = `<span class="tag ${cur.cls}">${cur.label}</span>`;
   }
 
   #open(anchor=this.shadowRoot.querySelector('.trigger')){
     const pop=document.createElement('ui-popover');
     const box=document.createElement('div'); box.className='menu';
+
+    // Większe odstępy, wycentrowane tagi, hover na całym wierszu
     box.innerHTML = Object.entries(STATUS).map(([k,v])=>`
       <div class="item" data-value="${k}">
         <span class="tag ${v.cls}">${v.label}</span>
       </div>
     `).join('');
+
     pop.appendChild(box);
     document.body.appendChild(pop);
     pop.showFor(anchor);
