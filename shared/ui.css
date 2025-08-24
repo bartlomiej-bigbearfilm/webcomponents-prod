@@ -1,18 +1,68 @@
 :root{
   --bg:#f6f7fb;--surface:#ffffff;--muted:#f0f2f8;--text:#0f172a;--text-dim:#475569;--border:#e2e8f0;--accent:#6d28d9;
+  --elev: 0 10px 30px rgba(0,0,0,.12);
+
+  /* status colors (light, 20–30% alpha) */
+  --st-sale-bg: rgba(249,115,22,.12);   --st-sale-bd:#fdba74; --st-sale-tx:#9a3412;
+  --st-live-bg: rgba(8,145,178,.12);    --st-live-bd:#67e8f9; --st-live-tx:#155e75;
+  --st-done-bg: rgba(5,150,105,.12);    --st-done-bd:#86efac; --st-done-tx:#065f46;
+  --st-fail-bg: rgba(220,38,38,.12);    --st-fail-bd:#fca5a5; --st-fail-tx:#7f1d1d;
+
+  /* buttons */
+  --btn-bg: var(--surface);
+  --btn-bd: var(--border);
+  --btn-tx: var(--text);
+  --btn-hover: var(--muted);
+  --btn-focus: rgba(124,92,255,.35);
 }
 :root[data-theme="dark"]{
   --bg:#0b0d12;--surface:#141a24;--muted:#1b2230;--text:#dbe2ef;--text-dim:#a8b3c7;--border:#243145;--accent:#7c5cff;
+  --elev: 0 10px 30px rgba(0,0,0,.35);
+
+  --st-sale-bg: rgba(249,115,22,.22);   --st-sale-bd:#fdba74; --st-sale-tx:#ffedd5;
+  --st-live-bg: rgba(8,145,178,.22);    --st-live-bd:#67e8f9; --st-live-tx:#e0f2fe;
+  --st-done-bg: rgba(5,150,105,.22);    --st-done-bd:#86efac; --st-done-tx:#ecfdf5;
+  --st-fail-bg: rgba(220,38,38,.22);    --st-fail-bd:#fca5a5; --st-fail-tx:#fee2e2;
+
+  --btn-bg:#192234; --btn-bd:#273148; --btn-tx:#e6ebf6; --btn-hover:#202a41; --btn-focus:rgba(124,92,255,.45);
 }
+
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
 .wrap{padding:1rem;display:grid;gap:1rem}
 .card{background:var(--surface);border:2px solid var(--border);border-radius:14px;padding:1rem}
 .top-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem}
-
 .small{font-size:.86rem;opacity:.85}
-.tag{display:inline-flex;align-items:center;gap:.4rem;border-radius:999px;padding:.18rem .55rem;font-weight:600;border:1px solid transparent}
-.tag.sale{background:#fff7ed;border-color:#fed7aa;color:#9a3412}
-.tag.live{background:#ecfeff;border-color:#a5f3fc;color:#155e75}
-.tag.done{background:#ecfdf5;border-color:#a7f3d0;color:#065f46}
-.tag.fail{background:#fef2f2;border-color:#fecaca;color:#7f1d1d}
+
+/* ---------- Buttons (global) ---------- */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:.5rem;
+  border:1px solid var(--btn-bd);background:var(--btn-bg);color:var(--btn-tx);
+  border-radius:12px;padding:.45rem .8rem;font-weight:600;cursor:pointer;
+  transition:.16s transform ease, .16s background-color ease, .16s border-color ease, .16s box-shadow ease;
+}
+.btn:hover{ background:var(--btn-hover); }
+.btn:active{ transform:translateY(1px); }
+.btn:focus-visible{ outline:0; box-shadow:0 0 0 3px var(--btn-focus); }
+.btn.primary{ background:var(--accent); color:white; border-color:transparent; }
+.btn.primary:hover{ filter:brightness(1.05); }
+.btn.ghost{ background:transparent; }
+.btn.full{ width:100%; }
+
+/* ---------- Tags (statusy) ---------- */
+.tag{
+  display:inline-flex;align-items:center;gap:.4rem;
+  border-radius:10px;padding:.22rem .55rem;font-weight:700;font-size:.9rem;
+  border:1px solid transparent; line-height:1.1; user-select:none;
+}
+.tag.sale{ background:var(--st-sale-bg); border-color:var(--st-sale-bd); color:var(--st-sale-tx); }
+.tag.live{ background:var(--st-live-bg); border-color:var(--st-live-bd); color:var(--st-live-tx); }
+.tag.done{ background:var(--st-done-bg); border-color:var(--st-done-bd); color:var(--st-done-tx); }
+.tag.fail{ background:var(--st-fail-bg); border-color:var(--st-fail-bd); color:var(--st-fail-tx); }
+
+/* lekkie uniesienie na hover (np. w listach pickerów) */
+.tag.hoverable{ transition:.14s transform ease, .14s box-shadow ease; }
+.tag.hoverable:hover{ transform:translateY(-1px); box-shadow:0 6px 16px rgba(0,0,0,.08); }
+
+/* ---------- Popover / menu drobne dopieszczenie ---------- */
+ui-popover .pop{ padding:.5rem; }
