@@ -1,8 +1,4 @@
 // components/data-card.js
-// Lekki komponent, który deleguje WSZYSTKO na istniejące pickery i helpery
-// Wymaga: shared/store.js, shared/utils.js, shared/modal.js, shared/date-range-popup.js,
-//         components/client-picker.js, components/status-picker.js
-
 import { store } from '../shared/store.js';
 import { fmtCurrency, fmtShort } from '../shared/utils.js';
 
@@ -10,7 +6,6 @@ customElements.define('data-card', class extends HTMLElement{
   constructor(){ super(); this.attachShadow({mode:'open'}); }
   connectedCallback(){ this.render(); }
 
-  // ————————— helpers —————————
   _save(k,v){
     if(['name','client','description','budget','fee','margin','status'].includes(k)){
       store.setProject({ [k]: v });
@@ -45,15 +40,11 @@ customElements.define('data-card', class extends HTMLElement{
     }
 
     const onSave = (ev)=>{ const {start,end}=ev.detail; this._save(key, `${start}–${end}`); cleanup(); };
-    const onCancel = ()=> cleanup();
-    const onClose = ()=> cleanup();
-    const cleanup=()=>{ picker.removeEventListener('save', onSave); picker.removeEventListener('cancel', onCancel); pop.removeEventListener('close', onClose); pop.hide(); pop.remove(); };
+    const cleanup=()=>{ picker.removeEventListener('save', onSave); pop.removeEventListener('close', cleanup); pop.hide(); pop.remove(); };
     picker.addEventListener('save', onSave);
-    picker.addEventListener('cancel', onCancel);
-    pop.addEventListener('close', onClose);
+    pop.addEventListener('close', cleanup);
   }
 
-  // ————————— render —————————
   render(){
     const s=this.shadowRoot, p=store.project;
 
@@ -82,7 +73,6 @@ customElements.define('data-card', class extends HTMLElement{
         .range-inline{display:inline-flex;align-items:center;gap:.35rem;white-space:nowrap}
         .range-inline .box{display:inline-flex;align-items:center;border:1.5px dashed var(--border);border-radius:10px;padding:.2rem .4rem;min-width:92px}
         .range-inline .dash{opacity:.7}
-        /* tag statusu – korzysta z globalnych zmiennych kolorów z shared/ui.css */
         .tag{display:inline-flex;align-items:center;gap:.4rem;border-radius:10px;padding:.22rem .55rem;font-weight:600;border:1px solid transparent}
         .tag.sale{background:var(--st-sale-bg);border-color:var(--st-sale-bd);color:var(--st-sale-tx);}
         .tag.live{background:var(--st-live-bg);border-color:var(--st-live-bd);color:var(--st-live-tx);}
@@ -101,10 +91,10 @@ customElements.define('data-card', class extends HTMLElement{
       const slot = host?.querySelector('.client-slot');
       if(host && slot){
         const cp = document.createElement('client-picker');
-        cp.selected = p.client || '';
-        // klient ma własny UI – nie dodajemy handlera na host
+        slot.replaceWith(cp);                 // najpierw wpinamy do DOM
+        // potem dopiero ustawiamy wartość – po 1 „tiknięciu” event loop
+        queueMicrotask(()=> { try{ cp.selected = p.client || ''; }catch(_){} });
         cp.addEventListener('select', (ev)=> this._save('client', ev.detail.value));
-        slot.replaceWith(cp);
       }
     }
 
@@ -114,9 +104,9 @@ customElements.define('data-card', class extends HTMLElement{
       const slot = host?.querySelector('.status-slot');
       if(host && slot){
         const sp = document.createElement('status-picker');
-        sp.setAttribute('value', (typeof p.status==='string'? p.status : (p.status?.key || 'sale')));
-        sp.addEventListener('select', (ev)=> this._save('status', ev.detail.value));
         slot.replaceWith(sp);
+        queueMicrotask(()=> { try{ sp.setAttribute('value', (typeof p.status==='string'? p.status : (p.status?.key || 'sale'))); }catch(_){} });
+        sp.addEventListener('select', (ev)=> this._save('status', ev.detail.value));
       }
     }
 
