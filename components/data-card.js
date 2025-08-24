@@ -79,12 +79,13 @@ customElements.define('data-card', class extends HTMLElement{
         .range-inline .box{
           display:inline-flex;align-items:center;border:1.25px dashed var(--border);
           border-radius:10px;padding:.18rem .42rem;min-width:88px;background:var(--surface);
-          transition: box-shadow .12s ease, border-color .12s ease;
+          transition: box-shadow .12s ease, border-color .12s ease, background-color .12s ease;
         }
-        .range-inline .box:hover{ box-shadow:0 0 0 3px rgba(109,40,217,.14); border-color:var(--accent,#6d28d9) }
+        /* 👉 HOVER: podświetl oba boksy jednocześnie */
+        .value.period:hover .box{ box-shadow:0 0 0 3px rgba(109,40,217,.18); border-color:var(--accent,#6d28d9); background:rgba(109,40,217,.06); }
         .range-inline .dash{opacity:.6}
 
-        /* Tagi statusów (spójne z resztą) */
+        /* Tagi statusów */
         .tag{display:inline-flex;align-items:center;gap:.4rem;border-radius:10px;padding:.18rem .5rem;font-weight:600;border:1px solid transparent}
         .tag.sale{background:var(--st-sale-bg);border-color:var(--st-sale-bd);color:var(--st-sale-tx);}
         .tag.live{background:var(--st-live-bg);border-color:var(--st-live-bd);color:var(--st-live-tx);}
@@ -96,27 +97,29 @@ customElements.define('data-card', class extends HTMLElement{
       <div class="kv">
         ${rows.map(([l,k,v])=>`
           <div class="label">${l}</div>
-          <div class="value" data-key="${k}" tabindex="0">${this._fmt(k,v)}</div>
+          <div class="value ${['sale','pre','prod','post','fix'].includes(k)?'period':''}" data-key="${k}" tabindex="0">${this._fmt(k,v)}</div>
         `).join('')}
       </div>
     `;
 
-    // ---- klient: picker w środku pola (działa normalnie) ----
+    // ---- klient: klik z całego pola + picker w środku ----
     {
       const host = s.querySelector('.value[data-key="client"]');
       const slot = host?.querySelector('.client-slot');
       if(host && slot){
         const cp = document.createElement('client-picker');
         slot.replaceWith(cp);
-        // ustaw po wpięciu
         queueMicrotask(()=> { try{ cp.selected = p.client || ''; }catch(_){} });
-        // NIE zatrzymujemy propagacji — host nie ma obsługi klików dla client, więc nie koliduje
+
+        // kliknięcie gdziekolwiek w polu otwiera pickera
+        this._tap(host, ()=> { try{ cp.open(); }catch(_){ /* fallback gdyby metoda była prywatna */ cp.click(); } });
+
         cp.style.pointerEvents='auto';
         cp.addEventListener('select', (ev)=> this._save('client', ev.detail.value));
       }
     }
 
-    // ---- status: tag (wewnątrz pickera) ----
+    // ---- status: tag + klik z całego pola -> menu ----
     {
       const host = s.querySelector('.value[data-key="status"]');
       const slot = host?.querySelector('.status-slot');
@@ -124,6 +127,15 @@ customElements.define('data-card', class extends HTMLElement{
         const sp = document.createElement('status-picker');
         slot.replaceWith(sp);
         queueMicrotask(()=> { try{ sp.setAttribute('value', (typeof p.status==='string'? p.status : (p.status?.key || 'sale'))); }catch(_){} });
+
+        // kliknięcie gdziekolwiek w polu otwiera menu statusów
+        this._tap(host, ()=> {
+          try{
+            // "kliknij" wewnętrzny trigger status-pickera
+            sp.shadowRoot?.querySelector('.trigger')?.dispatchEvent(new MouseEvent('click', {bubbles:true}));
+          }catch(_){ sp.click(); }
+        });
+
         sp.style.pointerEvents='auto';
         sp.addEventListener('select', (ev)=> this._save('status', ev.detail.value));
       }
