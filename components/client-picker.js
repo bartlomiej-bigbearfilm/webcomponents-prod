@@ -12,7 +12,11 @@ customElements.define('client-picker', class extends HTMLElement{
     s.innerHTML = `
       <style>
         :host{display:inline-block}
-        .trigger{border:1px dashed var(--border);border-radius:10px;padding:.2rem .45rem;cursor:pointer;background:var(--surface)}
+        .trigger{
+          border:1px dashed var(--border);border-radius:10px;padding:.28rem .55rem;
+          cursor:pointer;background:var(--surface);display:inline-flex;align-items:center;gap:.45rem
+        }
+        .trigger:hover{ background:var(--muted); }
       </style>
       <span class="trigger">—</span>
     `;
@@ -33,13 +37,13 @@ customElements.define('client-picker', class extends HTMLElement{
 
     const menu=document.createElement('ui-menu');
     const addBtn=document.createElement('button');
-    addBtn.textContent='➕ Dodaj nowego…';
-    addBtn.className='btn';
-    addBtn.style.cssText='margin-top:.4rem;width:100%';
+    addBtn.textContent='➕ Dodaj nowego klienta';
+    addBtn.className='btn primary full';
+    addBtn.style.marginTop='.5rem';
 
     const wrap=document.createElement('div');
     const inner=document.createElement('div');
-    inner.style.minWidth='260px';
+    inner.style.minWidth='280px';
     inner.append(menu, addBtn);
     wrap.appendChild(inner);
     pop.appendChild(wrap);
@@ -60,7 +64,7 @@ customElements.define('client-picker', class extends HTMLElement{
     menu.addEventListener('select', (e)=> finish(e.detail.value, false));
 
     const onAdd = ()=>{
-      const name=prompt('Nazwa klienta'); if(!name) return;
+      const name=prompt('Nazwa nowego klienta'); if(!name) return;
       const list=store.getClients(); if(!list.includes(name)) store.setClients([...list,name]);
       finish(name, true);
     };
