@@ -17,14 +17,7 @@ customElements.define('status-picker', class extends HTMLElement{
     s.innerHTML = `
       <style>
         :host{display:inline-block;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
-        .trigger{display:inline-flex;align-items:center;gap:.4rem;border-radius:999px;padding:.18rem .55rem;font-weight:600;border:1px solid transparent;cursor:pointer}
-        .sale{background:#fff7ed;border-color:#fed7aa;color:#9a3412}
-        .live{background:#ecfeff;border-color:#a5f3fc;color:#155e75}
-        .done{background:#ecfdf5;border-color:#a7f3d0;color:#065f46}
-        .fail{background:#fef2f2;border-color:#fecaca;color:#7f1d1d}
-        .menu{min-width:220px}
-        .item{padding:.45rem .6rem;border-radius:10px;cursor:pointer;display:flex;align-items:center;gap:.5rem}
-        .item:hover{background:var(--muted)}
+        .trigger{display:inline-flex;align-items:center;gap:.4rem;cursor:pointer}
       </style>
       <span class="trigger"></span>
     `;
@@ -39,16 +32,23 @@ customElements.define('status-picker', class extends HTMLElement{
     const cur = STATUS[this.value] || STATUS.sale;
     const trg = this.shadowRoot.querySelector('.trigger');
     if(!trg) return;
-    trg.className = `trigger ${cur.cls}`;
-    trg.textContent = `${cur.label}`;
+    trg.innerHTML = `<span class="tag ${cur.cls}">${cur.label}</span>`;
   }
 
   #open(anchor=this.shadowRoot.querySelector('.trigger')){
     const pop=document.createElement('ui-popover');
-    const box=document.createElement('div'); box.className='menu';
+    const box=document.createElement('div');
+    box.style.minWidth='240px';
+    box.style.display='grid';
+    box.style.gap='.35rem';
+
+    // elementy listy z taką samą prezencją jak w danych
     box.innerHTML = Object.entries(STATUS).map(([k,v])=>`
-      <div class="item" data-value="${k}">${v.emoji} ${v.label}</div>
+      <button class="btn ghost" data-value="${k}" style="justify-content:flex-start;padding:.25rem .2rem;border:none;background:transparent">
+        <span class="tag ${v.cls} hoverable" style="width:100%;justify-content:center">${v.label}</span>
+      </button>
     `).join('');
+
     pop.appendChild(box);
     document.body.appendChild(pop);
     pop.showFor(anchor);
@@ -59,10 +59,10 @@ customElements.define('status-picker', class extends HTMLElement{
       pop.hide(); pop.remove();
     };
 
-    box.querySelectorAll('.item').forEach(it=>{
-      const h = ()=> pick(it.dataset.value);
-      it.addEventListener('click', h);
-      it.addEventListener('touchstart', (e)=>{ e.preventDefault(); h(); }, {passive:false});
+    box.querySelectorAll('[data-value]').forEach(btn=>{
+      const h = ()=> pick(btn.dataset.value);
+      btn.addEventListener('click', h);
+      btn.addEventListener('touchstart', (e)=>{ e.preventDefault(); h(); }, {passive:false});
     });
     pop.addEventListener('close', ()=> pop.remove());
   }
