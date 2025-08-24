@@ -3,9 +3,7 @@ import { store } from '../shared/store.js';
 
 customElements.define('client-picker', class extends HTMLElement{
   static get observedAttributes(){ return ['value','selected']; }
-
   constructor(){ super(); this.attachShadow({mode:'open'}); this.value=''; }
-
   attributeChangedCallback(name, oldV, newV){
     if(oldV === newV) return;
     if(name === 'value' || name === 'selected'){
@@ -13,7 +11,6 @@ customElements.define('client-picker', class extends HTMLElement{
       this.paintTrigger();
     }
   }
-
   connectedCallback(){ this.render(); }
 
   set selected(v){ this.value = v || ''; this.paintTrigger(); }
@@ -24,7 +21,6 @@ customElements.define('client-picker', class extends HTMLElement{
     s.innerHTML = `
       <style>
         :host{display:inline-block}
-        /* W „Dane” ma wyglądać jak zwykły tekst (bez podkreślenia/strzałki/ramki) */
         .trigger{
           cursor:pointer; display:inline-flex; align-items:center; gap:.45rem;
           padding:0; background:transparent; border:0; color:inherit; font:inherit;
@@ -43,8 +39,7 @@ customElements.define('client-picker', class extends HTMLElement{
   }
 
   paintTrigger(){
-    // 👇 ważne: gdy setter zadziała zanim render, po prostu odłóż malowanie
-    const t = this.shadowRoot?.querySelector('.label');
+    const t=this.shadowRoot?.querySelector('.label');
     if(!t) return;
     t.textContent = this.value || 'Wybierz klienta…';
   }
@@ -58,24 +53,24 @@ customElements.define('client-picker', class extends HTMLElement{
     box.style.display='grid';
     box.style.gap='.6rem';
 
-    // Sekcja „Nowy klient”: najpierw duży przycisk; po kliknięciu pokazuje się input + Dodaj
+    // Sekcja „Nowy klient” NA DOLE popovera
     const newWrap=document.createElement('div');
     newWrap.innerHTML = `
       <style>
-        .row{display:flex;gap:.5rem}
+        .row{display:flex;gap:.5rem;margin-top:.4rem}
         .row input{flex:1;border:1px solid var(--border);border-radius:10px;padding:.5rem .7rem;background:var(--surface);color:var(--text)}
         .hidden{display:none}
       </style>
-      <button class="btn primary full" type="button">➕ Nowy klient</button>
       <div class="row hidden">
         <input placeholder="Nazwa nowego klienta…" />
         <button class="btn" type="button">Dodaj</button>
       </div>
+      <button class="btn primary full new-btn" type="button" style="margin-top:.2rem">➕ Nowy klient</button>
     `;
-    const newBtn = newWrap.querySelector('button.btn.primary');
     const row    = newWrap.querySelector('.row');
     const input  = newWrap.querySelector('input');
     const addBtn = newWrap.querySelector('.row .btn');
+    const newBtn = newWrap.querySelector('.new-btn');
 
     newBtn.addEventListener('click', ()=>{
       newBtn.classList.add('hidden');
@@ -95,8 +90,8 @@ customElements.define('client-picker', class extends HTMLElement{
     addBtn.addEventListener('touchstart', (e)=>{ e.preventDefault(); create(); }, {passive:false});
     input.addEventListener('keydown', (e)=>{ if(e.key==='Enter') create(); });
 
-    // Złożenie popovera
-    box.append(newWrap, menu);
+    // Złożenie popovera – najpierw lista, potem nowy klient na DOLE
+    box.append(menu, newWrap);
     pop.appendChild(box);
     document.body.appendChild(pop);
 
