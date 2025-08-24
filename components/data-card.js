@@ -6,6 +6,7 @@ customElements.define('data-card', class extends HTMLElement{
   constructor(){ super(); this.attachShadow({mode:'open'}); }
   connectedCallback(){ this.render(); }
 
+  // ---------------- helpers ----------------
   _save(k,v){
     if(['name','client','description','budget','fee','margin','status'].includes(k)){
       store.setProject({ [k]: v });
@@ -18,13 +19,11 @@ customElements.define('data-card', class extends HTMLElement{
     window.dispatchEvent(new CustomEvent('project-change'));
     document.getElementById('toast')?.show?.('Zapisano zmiany','success');
   }
-
   _tap(el, fn){
     if(!el) return;
     el.addEventListener('click', fn);
     el.addEventListener('touchstart', (e)=>{ e.preventDefault(); fn(e); }, {passive:false});
   }
-
   _openRangePicker(anchor, key){
     const pop = document.createElement('ui-popover');
     const picker = document.createElement('date-range-popup');
@@ -38,13 +37,13 @@ customElements.define('data-card', class extends HTMLElement{
       picker.setRange(s, e||s);
       if(s) picker.setMonth(new Date(s));
     }
-
     const onSave = (ev)=>{ const {start,end}=ev.detail; this._save(key, `${start}–${end}`); cleanup(); };
     const cleanup=()=>{ picker.removeEventListener('save', onSave); pop.removeEventListener('close', cleanup); pop.hide(); pop.remove(); };
     picker.addEventListener('save', onSave);
     pop.addEventListener('close', cleanup);
   }
 
+  // --------------- render ------------------
   render(){
     const s=this.shadowRoot, p=store.project;
 
@@ -66,39 +65,60 @@ customElements.define('data-card', class extends HTMLElement{
     s.innerHTML = `
       <style>
         :host{display:block}
-        .kv{display:grid;grid-template-columns:160px 1fr;gap:.4rem .6rem;align-items:center}
+        .kv{display:grid;grid-template-columns:160px 1fr;gap:.5rem .75rem;align-items:center}
         .label{color:var(--text-dim)}
-        .value{cursor:pointer;border-radius:8px;padding:.28rem .36rem;border:1px dashed var(--border);background:var(--surface)}
-        .value.plain{border:0;background:transparent;padding:0;cursor:default}
-        .range-inline{display:inline-flex;align-items:center;gap:.35rem;white-space:nowrap}
-        .range-inline .box{display:inline-flex;align-items:center;border:1.5px dashed var(--border);border-radius:10px;padding:.2rem .4rem;min-width:92px}
-        .range-inline .dash{opacity:.7}
+        .value{
+          cursor:pointer;border-radius:10px;padding:.35rem .45rem;
+          border:1.5px dashed var(--border);background:var(--surface);
+          transition: background-color .12s ease, border-color .12s ease, box-shadow .12s ease;
+          min-height:34px; display:flex; align-items:center; gap:.5rem;
+        }
+        .value:hover{ background:var(--muted); border-color:var(--border); box-shadow:0 2px 10px rgba(0,0,0,.04) }
+        .value.editing{ background:rgba(109,40,217,.06); outline:2px solid rgba(109,40,217,.3); border-color:transparent; }
+        .value :is(input,textarea){ width:100%; border:1px solid var(--border); border-radius:10px; padding:.5rem .6rem; font:inherit; background:var(--surface); }
+
+        .range-inline{display:inline-flex;align-items:center;gap:.45rem;white-space:nowrap}
+        .range-inline .box{
+          display:inline-flex;align-items:center;border:1.5px dashed var(--border);
+          border-radius:10px;padding:.25rem .5rem;min-width:92px;background:var(--surface);
+          transition: box-shadow .12s ease, border-color .12s ease;
+        }
+        .range-inline .box:hover{ box-shadow:0 0 0 3px rgba(109,40,217,.14); border-color:var(--accent,#6d28d9) }
+        .range-inline .dash{opacity:.65}
+
+        /* Tagi statusów (jak w całym systemie) */
         .tag{display:inline-flex;align-items:center;gap:.4rem;border-radius:10px;padding:.22rem .55rem;font-weight:600;border:1px solid transparent}
         .tag.sale{background:var(--st-sale-bg);border-color:var(--st-sale-bd);color:var(--st-sale-tx);}
         .tag.live{background:var(--st-live-bg);border-color:var(--st-live-bd);color:var(--st-live-tx);}
         .tag.done{background:var(--st-done-bg);border-color:var(--st-done-bd);color:var(--st-done-tx);}
         .tag.fail{background:var(--st-fail-bg);border-color:var(--st-fail-bd);color:var(--st-fail-tx);}
       </style>
+
       <h2 style="margin-top:0">Dane</h2>
       <div class="kv">
-        ${rows.map(([l,k,v])=>`<div class="label">${l}</div><div class="value ${k==='client'||k==='status'?'plain':''}" data-key="${k}" tabindex="0">${this._fmt(k,v)}</div>`).join('')}
+        ${rows.map(([l,k,v])=>`
+          <div class="label">${l}</div>
+          <div class="value" data-key="${k}" tabindex="0">${this._fmt(k,v)}</div>
+        `).join('')}
       </div>
     `;
 
-    // ——— klient przez <client-picker> ———
+    // ---- klient: picker w środku pola (ramka zostaje) ----
     {
       const host = s.querySelector('.value[data-key="client"]');
       const slot = host?.querySelector('.client-slot');
       if(host && slot){
         const cp = document.createElement('client-picker');
-        slot.replaceWith(cp);                 // najpierw wpinamy do DOM
-        // potem dopiero ustawiamy wartość – po 1 „tiknięciu” event loop
-        queueMicrotask(()=> { try{ cp.selected = p.client || ''; }catch(_){} });
+        slot.replaceWith(cp);                         // wpinamy
+        queueMicrotask(()=> { try{ cp.selected = p.client || ''; }catch(_){} }); // ustaw wartość po wpięciu
+        // klik obsługuje sam picker; nic nie bąbelkujemy
+        cp.addEventListener('click', (e)=> e.stopPropagation());
+        cp.addEventListener('touchstart', (e)=> e.stopPropagation(), {passive:true});
         cp.addEventListener('select', (ev)=> this._save('client', ev.detail.value));
       }
     }
 
-    // ——— status przez <status-picker> ———
+    // ---- status: tag + picker w środku pola ----
     {
       const host = s.querySelector('.value[data-key="status"]');
       const slot = host?.querySelector('.status-slot');
@@ -106,40 +126,70 @@ customElements.define('data-card', class extends HTMLElement{
         const sp = document.createElement('status-picker');
         slot.replaceWith(sp);
         queueMicrotask(()=> { try{ sp.setAttribute('value', (typeof p.status==='string'? p.status : (p.status?.key || 'sale'))); }catch(_){} });
+        sp.addEventListener('click', (e)=> e.stopPropagation());
+        sp.addEventListener('touchstart', (e)=> e.stopPropagation(), {passive:true});
         sp.addEventListener('select', (ev)=> this._save('status', ev.detail.value));
       }
     }
 
-    // ——— reszta pól (klik-edycja) ———
-    s.querySelectorAll('.value').forEach(v=>{
-      const k = v.dataset.key;
-      if(k==='client' || k==='status') return; // obsługują własne pickery
+    // ---- edycja inline dla pozostałych pól ----
+    s.querySelectorAll('.value').forEach(val=>{
+      const k = val.dataset.key;
+      if(k==='client' || k==='status') return;
 
       if(['sale','pre','prod','post','fix'].includes(k)){
-        this._tap(v, ()=> this._openRangePicker(v, k));
+        // klik w całe pole, ale pozycjonujemy po pierwszym boxie
+        const anchor = val.querySelector('.box') || val;
+        this._tap(val, ()=> this._openRangePicker(anchor, k));
         return;
       }
 
-      if(k==='budget'){
-        this._tap(v, ()=>{
-          const nv = parseFloat(prompt('Budżet', p.budget||0));
-          if(!Number.isNaN(nv)) this._save('budget', nv);
-        });
-        return;
-      }
-
-      if(k==='fee' || k==='margin'){
-        this._tap(v, ()=>{
-          const nv = parseInt(prompt(k.toUpperCase(), p[k]||0),10);
-          if(!Number.isNaN(nv)) this._save(k, nv);
+      if(k==='budget' || k==='fee' || k==='margin'){
+        this._tap(val, ()=>{
+          if(val.classList.contains('editing')) return;
+          val.classList.add('editing');
+          const cur = (k==='budget') ? Number(p.budget||0) : parseInt(p[k]||0,10);
+          val.innerHTML = `<input type="number" ${k==='budget'?'step="1" min="0"':'step="1" min="0" max="100"'} value="${isNaN(cur)?0:cur}">`;
+          const inp = val.querySelector('input'); inp.focus(); inp.select();
+          const commit=()=>{ const v = inp.value;
+            if(k==='budget'){ const n=parseFloat(v); if(!Number.isNaN(n)) this._save('budget', n); }
+            else { const n=parseInt(v,10); if(!Number.isNaN(n)) this._save(k, n); }
+          };
+          const cancel=()=> this.render();
+          inp.addEventListener('keydown', e=>{
+            if(e.key==='Escape'){ e.preventDefault(); cancel(); }
+            if(e.key==='Enter'){ e.preventDefault(); commit(); }
+          });
+          inp.addEventListener('blur', commit);
         });
         return;
       }
 
       if(k==='name' || k==='description'){
-        this._tap(v, ()=>{
-          const nv = prompt(k==='name'?'Nazwa projektu':'Opis', p[k]||'');
-          if(nv!=null) this._save(k, nv);
+        this._tap(val, ()=>{
+          if(val.classList.contains('editing')) return;
+          val.classList.add('editing');
+          if(k==='description'){
+            val.innerHTML = `<textarea>${p.description||''}</textarea>`;
+            const ta = val.querySelector('textarea'); ta.focus(); ta.selectionStart = ta.value.length;
+            const commit=()=> this._save('description', ta.value);
+            const cancel=()=> this.render();
+            ta.addEventListener('keydown', e=>{
+              if(e.key==='Escape'){ e.preventDefault(); cancel(); }
+              if((e.key==='Enter' && (e.metaKey||e.ctrlKey))){ e.preventDefault(); commit(); }
+            });
+            ta.addEventListener('blur', commit);
+          } else {
+            val.innerHTML = `<input type="text" value="${p.name||''}">`;
+            const inp = val.querySelector('input'); inp.focus(); inp.select();
+            const commit=()=> this._save('name', inp.value.trim());
+            const cancel=()=> this.render();
+            inp.addEventListener('keydown', e=>{
+              if(e.key==='Escape'){ e.preventDefault(); cancel(); }
+              if(e.key==='Enter'){ e.preventDefault(); commit(); }
+            });
+            inp.addEventListener('blur', commit);
+          }
         });
         return;
       }
