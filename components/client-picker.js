@@ -13,12 +13,15 @@ customElements.define('client-picker', class extends HTMLElement{
       <style>
         :host{display:inline-block}
         .trigger{
-          border:1px dashed var(--border);border-radius:10px;padding:.28rem .55rem;
-          cursor:pointer;background:var(--surface);display:inline-flex;align-items:center;gap:.45rem
+          cursor:pointer; display:inline-flex; align-items:center; gap:.45rem;
+          padding:0; background:transparent; border:0; color:inherit; font:inherit;
         }
-        .trigger:hover{ background:var(--muted); }
+        .chev{opacity:.6}
+        .trigger:hover .label{ text-decoration:underline; }
       </style>
-      <span class="trigger">—</span>
+      <button class="trigger" type="button">
+        <span class="label">—</span><span class="chev">▾</span>
+      </button>
     `;
     this.paintTrigger();
     const trg=s.querySelector('.trigger');
@@ -28,7 +31,7 @@ customElements.define('client-picker', class extends HTMLElement{
   }
 
   paintTrigger(){
-    const t=this.shadowRoot.querySelector('.trigger');
+    const t=this.shadowRoot.querySelector('.label');
     t.textContent = this.value || 'Wybierz klienta…';
   }
 
@@ -36,18 +39,24 @@ customElements.define('client-picker', class extends HTMLElement{
     const pop=document.createElement('ui-popover');
 
     const menu=document.createElement('ui-menu');
-    const addBtn=document.createElement('button');
-    addBtn.textContent='➕ Dodaj nowego klienta';
-    addBtn.className='btn primary full';
-    addBtn.style.marginTop='.5rem';
+    const box=document.createElement('div');
+    box.style.minWidth='300px';
+    box.style.display='grid';
+    box.style.gap='.5rem';
 
-    const wrap=document.createElement('div');
-    const inner=document.createElement('div');
-    inner.style.minWidth='280px';
-    inner.append(menu, addBtn);
-    wrap.appendChild(inner);
-    pop.appendChild(wrap);
-
+    const addRow=document.createElement('div');
+    addRow.innerHTML = `
+      <style>
+        .row{display:flex;gap:.4rem}
+        .row input{flex:1;border:1px solid var(--border);border-radius:10px;padding:.45rem .6rem;background:var(--surface);color:var(--text)}
+      </style>
+      <div class="row">
+        <input placeholder="Dodaj nowego klienta…" />
+        <button class="btn primary" type="button">Dodaj</button>
+      </div>
+    `;
+    box.append(menu, addRow);
+    pop.appendChild(box);
     document.body.appendChild(pop);
 
     const clients=store.getClients().map(c=>({label:c,value:c}));
@@ -63,14 +72,20 @@ customElements.define('client-picker', class extends HTMLElement{
 
     menu.addEventListener('select', (e)=> finish(e.detail.value, false));
 
-    const onAdd = ()=>{
-      const name=prompt('Nazwa nowego klienta'); if(!name) return;
+    const input = addRow.querySelector('input');
+    const btn   = addRow.querySelector('button');
+
+    const create = ()=>{
+      const name=(input.value||'').trim(); if(!name) return;
       const list=store.getClients(); if(!list.includes(name)) store.setClients([...list,name]);
       finish(name, true);
     };
-    addBtn.addEventListener('click', onAdd);
-    addBtn.addEventListener('touchstart', (e)=>{ e.preventDefault(); onAdd(); }, {passive:false});
+    btn.addEventListener('click', create);
+    btn.addEventListener('touchstart', (e)=>{ e.preventDefault(); create(); }, {passive:false});
+    input.addEventListener('keydown', (e)=>{ if(e.key==='Enter') create(); });
 
     pop.addEventListener('close', ()=> pop.remove());
+    // autofocus
+    setTimeout(()=> input?.focus(), 50);
   }
 });
