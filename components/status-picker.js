@@ -1,9 +1,9 @@
 // components/status-picker.js
 const STATUS = {
-  sale: {label:'W sprzedaży',  cls:'sale',  emoji:'🟠'},
-  live: {label:'Trwające',     cls:'live',  emoji:'🟢'},
-  done: {label:'Zakończone',   cls:'done',  emoji:'🔵'},
-  fail: {label:'Nieudane',     cls:'fail',  emoji:'🔴'},
+  sale: {label:'W sprzedaży',  cls:'sale'},
+  live: {label:'Trwające',     cls:'live'},
+  done: {label:'Zakończone',   cls:'done'},
+  fail: {label:'Nieudane',     cls:'fail'},
 };
 
 customElements.define('status-picker', class extends HTMLElement{
@@ -18,6 +18,9 @@ customElements.define('status-picker', class extends HTMLElement{
       <style>
         :host{display:inline-block;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
         .trigger{display:inline-flex;align-items:center;gap:.4rem;cursor:pointer}
+        .menu{min-width:240px;display:grid;gap:.35rem}
+        .item{padding:.2rem;border-radius:8px;cursor:pointer}
+        .item:hover{background:var(--muted)}
       </style>
       <span class="trigger"></span>
     `;
@@ -37,18 +40,12 @@ customElements.define('status-picker', class extends HTMLElement{
 
   #open(anchor=this.shadowRoot.querySelector('.trigger')){
     const pop=document.createElement('ui-popover');
-    const box=document.createElement('div');
-    box.style.minWidth='240px';
-    box.style.display='grid';
-    box.style.gap='.35rem';
-
-    // elementy listy z taką samą prezencją jak w danych
+    const box=document.createElement('div'); box.className='menu';
     box.innerHTML = Object.entries(STATUS).map(([k,v])=>`
-      <button class="btn ghost" data-value="${k}" style="justify-content:flex-start;padding:.25rem .2rem;border:none;background:transparent">
-        <span class="tag ${v.cls} hoverable" style="width:100%;justify-content:center">${v.label}</span>
-      </button>
+      <div class="item" data-value="${k}">
+        <span class="tag ${v.cls}">${v.label}</span>
+      </div>
     `).join('');
-
     pop.appendChild(box);
     document.body.appendChild(pop);
     pop.showFor(anchor);
@@ -59,10 +56,10 @@ customElements.define('status-picker', class extends HTMLElement{
       pop.hide(); pop.remove();
     };
 
-    box.querySelectorAll('[data-value]').forEach(btn=>{
-      const h = ()=> pick(btn.dataset.value);
-      btn.addEventListener('click', h);
-      btn.addEventListener('touchstart', (e)=>{ e.preventDefault(); h(); }, {passive:false});
+    box.querySelectorAll('[data-value]').forEach(el=>{
+      const h = ()=> pick(el.dataset.value);
+      el.addEventListener('click', h);
+      el.addEventListener('touchstart', (e)=>{ e.preventDefault(); h(); }, {passive:false});
     });
     pop.addEventListener('close', ()=> pop.remove());
   }
