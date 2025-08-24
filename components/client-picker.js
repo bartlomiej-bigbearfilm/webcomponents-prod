@@ -2,9 +2,21 @@
 import { store } from '../shared/store.js';
 
 customElements.define('client-picker', class extends HTMLElement{
+  static get observedAttributes(){ return ['value','selected']; }
+
   constructor(){ super(); this.attachShadow({mode:'open'}); this.value=''; }
+
+  attributeChangedCallback(name, oldV, newV){
+    if(oldV === newV) return;
+    if(name === 'value' || name === 'selected'){
+      this.value = newV || '';
+      this.paintTrigger();
+    }
+  }
+
   connectedCallback(){ this.render(); }
-  set selected(v){ this.value=v||''; this.paintTrigger(); }
+
+  set selected(v){ this.value = v || ''; this.paintTrigger(); }
   get selected(){ return this.value; }
 
   render(){
@@ -31,7 +43,9 @@ customElements.define('client-picker', class extends HTMLElement{
   }
 
   paintTrigger(){
-    const t=this.shadowRoot.querySelector('.label');
+    // 👇 ważne: gdy setter zadziała zanim render, po prostu odłóż malowanie
+    const t = this.shadowRoot?.querySelector('.label');
+    if(!t) return;
     t.textContent = this.value || 'Wybierz klienta…';
   }
 
@@ -72,7 +86,10 @@ customElements.define('client-picker', class extends HTMLElement{
     const create = ()=>{
       const name=(input.value||'').trim(); if(!name) return;
       const list=store.getClients(); if(!list.includes(name)) store.setClients([...list,name]);
-      finish(name, true);
+      this.value = name;
+      this.paintTrigger();
+      this.dispatchEvent(new CustomEvent('select', {detail:{value:this.value, created:true}}));
+      pop.hide(); pop.remove();
     };
     addBtn.addEventListener('click', create);
     addBtn.addEventListener('touchstart', (e)=>{ e.preventDefault(); create(); }, {passive:false});
@@ -88,14 +105,12 @@ customElements.define('client-picker', class extends HTMLElement{
     menu.data = clients;
     pop.showFor(anchor);
 
-    const finish = (val, created=false)=>{
-      this.value = val;
+    menu.addEventListener('select', (e)=>{
+      this.value = e.detail.value;
       this.paintTrigger();
-      this.dispatchEvent(new CustomEvent('select', {detail:{value:this.value, created}}));
+      this.dispatchEvent(new CustomEvent('select', {detail:{value:this.value}}));
       pop.hide(); pop.remove();
-    };
-
-    menu.addEventListener('select', (e)=> finish(e.detail.value, false));
+    });
     pop.addEventListener('close', ()=> pop.remove());
   }
 });
